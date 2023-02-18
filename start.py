@@ -1,11 +1,24 @@
+# NOW
 # TODO Add login system and page
 # TODO Add SQL Alchemy Database
-# TODO Add cart and products
+# TODO Add cart
+# TODO Add more necessary flask packages
+#
+# AFTER MEETING WITH ELIJAH
+# TODO Add products
 # TODO Format HTML pages
-# TODO Figure out purchase verification
+#
+# END
+# TODO Add email sending
 # TODO Figure out security
+# TODO Figure out purchase verification
+# TODO Add to server
 
 from flask import Flask, render_template, request, session, redirect, url_for, flash, jsonify
+from flask_login import login_manager
+# from flask_sqlalchemy
+# from flask_mailpp
+
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -33,4 +46,3 @@ def rugs():
 
 if __name__ == "__main__":
     app.run(debug=True)
-

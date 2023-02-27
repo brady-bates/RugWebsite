@@ -16,7 +16,7 @@ from flask import Flask, render_template, session, redirect, url_for, request, f
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_required, logout_user, UserMixin
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData, Column, Table, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
 from forms import RegisterForm, LoginForm
 
@@ -30,12 +30,21 @@ Base = declarative_base()
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 
+engine = create_engine('sqlite:///database.db', echo=True)
+
+# define meta data for table
+meta = MetaData()
+USERStable = Table("Users", meta, Column('id', Integer, primary_key = True, autoincrement=True, nullable=True), Column("username",String, unique=True, nullable=False), Column("password",String,nullable=False), Column("email",String, nullable=True))
+
+# create table to sqlite
+meta.create_all(engine)
+
 class User(db.Model, UserMixin):
     __tablename__ = "Users"
     id       = db.Column(db.Integer, primary_key=True, nullable=True, unique=True)
     username = db.Column(db.String(20), nullable=False, unique=True)
     password = db.Column(db.String(15), nullable=False)
-    email    = db.Column(db.String(40), nullable=False)
+    email    = db.Column(db.String(40), nullable=True)
 
     def __init__(self, username, password):
         self.username = username
@@ -45,9 +54,6 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return f"{self.username}"
 
-
-engine = create_engine('sqlite:///database.db', echo=True)
-Base.metadata.create_all(engine)
 
 Session = sessionmaker(engine)
 session = Session()

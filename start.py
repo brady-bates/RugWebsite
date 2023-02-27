@@ -12,16 +12,13 @@
 # TODO Figure out security
 # TODO Figure out purchase verification
 # TODO Add to server
-
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, request, flash
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_required, logout_user, UserMixin
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf import FlaskForm
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import InputRequired, ValidationError, Length
+from forms import RegisterForm, LoginForm
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -30,19 +27,17 @@ app.config['SECRET_KEY'] = "TOPSECRETKEY"
 app.secret_key = "TOPSECRETKEY"
 
 Base = declarative_base()
-
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 
 class User(db.Model, UserMixin):
     __tablename__ = "Users"
-
     id       = db.Column(db.Integer, primary_key=True, nullable=True, unique=True)
     username = db.Column(db.String(20), nullable=False, unique=True)
     password = db.Column(db.String(15), nullable=False)
+    email    = db.Column(db.String(40), nullable=False)
 
     def __init__(self, username, password):
-
         self.username = username
         self.password = password
 
@@ -57,47 +52,10 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(engine)
 session = Session()
 
-session.query(User).where(User.username.like("admin%")).delete()
-
-# session.delete(User).where.like()
-
-admin = User(username="admin", password="ADMIN_PASS")
-admin2 = User(username="admin2", password="ADMIN_PASS")
+session.query(User).where(User.username.like("admin")).delete()
+admin = User(username="admin", password="adminpass")
 session.add(admin)
-session.add(admin2)
-
 session.commit()
-
-class RegisterForm(FlaskForm):
-    username = StringField(validators=[InputRequired(), Length(min=4, max=20)])
-    password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)])
-
-    submit = SubmitField("Register")
-
-    def validate_username(self, username):
-        existing_user_username = User.query.filter_by(username=username.data).first()
-        if existing_user_username:
-            raise ValidationError(
-                "That Username already exists."
-            )
-
-class LoginForm(FlaskForm):
-    username = StringField(validators  =[InputRequired(),
-                                         Length(min=4, max=20)],
-                                         render_kw={"placeholder": "Username"})
-    password = PasswordField(validators=[InputRequired(),
-                                         Length(min=4, max=20)],
-                                         render_kw={"placeholder": "Password"})
-    submit = SubmitField("Login")
-
-
-login_manager = LoginManager()
-login_manager.init_app(app)
-
-
-@login_manager.user_loader
-def load_user(userid):
-    return User.get(userid)
 
 
 @app.route("/")
@@ -119,17 +77,13 @@ def login():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     form = RegisterForm()
-    if form.validate_on_submit():
-        # If Username does not exist in DB
-        if session.query(session.query(User).filter_by(username="admin").exists()).scalar():
-            hashed_password = bcrypt.generate_password_hash(form.password.data)
-            new_user = User(username=form.username.data, password=hashed_password)
-            db.session.add(new_user)
-            db.session.commit()
-            return redirect(url_for("login"))
-        # If username exists in DB
-        else:
-            return f"Username already taken"
+    if request.method == 'POST' and form.validate():
+        hashed_password = bcrypt.generate_password_hash(form.password.data)
+        new_user = User(username=form.username.data, password=hashed_password)
+        print(new_user)
+        session.add(new_user)
+        session.commit()
+        return redirect(url_for("login"))
     return render_template("register.html", form=form)
 
 
@@ -157,9 +111,6 @@ def edit():
 @login_required
 @app.route("/user")
 def user():
-    if "User" in session:
-        User = session["User"]
-
     return render_template("user.html")
 
 
@@ -169,6 +120,8 @@ def logout():
     logout_user()
     return redirect("somewhere")
 
+
+session.commit()
 
 if __name__ == "__main__":
     app.run(debug=True)

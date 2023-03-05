@@ -12,10 +12,12 @@
 # TODO Figure out security
 # TODO Figure out purchase verification
 # TODO Add to server
+import json
+
 import flask_login
 from argon2 import PasswordHasher
 from flask import Flask, render_template, session, redirect, url_for, request, flash
-from flask_login import login_required, logout_user
+from flask_login import login_required, logout_user, UserMixin, login_user
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, MetaData, Column, Table, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -27,6 +29,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SECRET_KEY'] = "TOPSECRETKEY"
 app.secret_key = "TOPSECRETKEY"
+ph = PasswordHasher()
 
 Base = declarative_base()
 db = SQLAlchemy(app)
@@ -34,32 +37,28 @@ engine = create_engine("sqlite:///database.db", echo=True)
 Session = sessionmaker(engine)
 session = Session()
 
-login = flask_login.LoginManager(app)
-login.init_app(app)
+login_manager = flask_login.LoginManager(app)
+login_manager.init_app(app)
+login_manager.login_view = "login"
 
-ph = PasswordHasher()
 
 meta = MetaData()
-USERS_Table = Table("Users", meta, Column("id", Integer, primary_key=True, autoincrement=True, nullable=True),
-                   Column("username", String, unique=True, nullable=False),
-                   Column("password", String, nullable=False),
-                   Column("email", String, nullable=True),
-                   Column("salt", String, nullable=True)
-                   )
+USERS_Table = Table("Users", meta,
+                    Column("id", Integer, primary_key=True, autoincrement=True, nullable=True),
+                    Column("username", String, unique=True, nullable=False),
+                    Column("password", String, nullable=False),
+                    Column("email", String, nullable=True))
 # TODO
 # THIS LINE CLEARS DATABASE, REMEMBER TO REMOVE
 meta.drop_all(engine, checkfirst=True)
-
 meta.create_all(engine)
 
-
-class User(db.Model, flask_login.UserMixin):
+class Users(db.Model, UserMixin):
     __tablename__ = "Users"
-    id       = db.Column(db.Integer, primary_key=True, nullable=True, unique=True)
+    id = db.Column(db.Integer(), primary_key=True, nullable=True, unique=True)
     username = db.Column(db.String(20), nullable=False, unique=True)
     password = db.Column(db.String(15), nullable=False)
-    email    = db.Column(db.String(40), nullable=True)
-    salt     = db.Column(db.String(20), nullable=True)
+    email = db.Column(db.String(40), nullable=True)
 
     def __init__(self, username, password):
         self.username = username
@@ -69,22 +68,17 @@ class User(db.Model, flask_login.UserMixin):
     def __repr__(self):
         return f"{self.username}"
 
-    def get_id(self):
-        return id
 
-    @login.user_loader
-    def load_user(id):
-        return User.query.get(int(id))
+@login_manager.user_loader
+def load_user(user_id):
+    return session.query(Users).filter_by(id = user_id).first()
 
 
-session.query(User).filter(User.username.like("admin")).delete()
-admin = User(username="admin", password="adminpass")
-test1 = User(username="test1", password=ph.hash("testpassword"))
-session.add(admin)
+session.query(Users).filter(Users.username.like("admin")).delete()
+test1 = Users(username="test1", password=ph.hash("password"))
 session.add(test1)
 session.commit()
 
-hash = ph.hash("correct horse battery staple")
 
 @app.route("/")
 def base():
@@ -102,24 +96,33 @@ def login():
     entered_username = form.username.data
 
     if request.method == 'POST' and form.validate():
-        stored_user = session.query(User).filter(User.username==entered_username).first()
-        flash(stored_user.password)
+        stored_user = session.query(Users).filter_by(username=entered_username).first()
         entered_user_password = form.password.data
 
         if ph.verify(stored_user.password, entered_user_password):
-            flask_login.login_user(User)
+            login_user(stored_user)
             flash("You are logged in", "info")
-        else:
-            flash("Login failed")
-
     return render_template("login.html", form=form)
+
+@app.route("/logout", methods=["GET", "POST"])
+@login_required
+def logout():
+    logout_user()
+    flash("You have been logged out!")
+    return redirect(url_for('login'))
+
+# Specifies what to do if User is not logged in
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    flash("You must be logged in")
+    return redirect(url_for('login'))
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     form = RegisterForm()
     if request.method == 'POST' and form.validate():
         hashed_password = ph.hash(form.password.data)
-        new_user = User(username=form.username.data, password=hashed_password)
+        new_user = Users(username=form.username.data, password=hashed_password)
         print(new_user)
         session.add(new_user)
         session.commit()
@@ -138,23 +141,23 @@ def tables():
 def rugs():
     return render_template("rugs.html")
 
-@login_required
+
 @app.route("/edit")
+@login_required
 def edit():
     return render_template("edit.html")
 
-@login_required
+
 @app.route("/user")
+@login_required
 def user():
+
     return render_template("user.html")
 
-@login_required
-@app.route("/logout")
-def logout():
-    logout_user()
-    return redirect("somewhere")
+# @app.errorhandler(404)
+# def page_not_found(e):
+#     return render_template("404.html"), 404
 
 
-session.commit()
 if __name__ == "__main__":
     app.run(debug=True)

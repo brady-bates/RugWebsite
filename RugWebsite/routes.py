@@ -1,10 +1,20 @@
+import flask_login
 from flask import redirect, url_for, flash, render_template, request
 from flask_login import login_required, logout_user, login_user
-
 from RugWebsite import app, ph
 from RugWebsite.forms import LoginForm, RegisterForm
 
 from run import Users, session
+
+login_manager = flask_login.LoginManager(app)
+login_manager.init_app(app)
+@login_manager.user_loader                   # Necessary for Flask Login to work
+def load_user(user_id):
+    return session.query(Users).filter_by(id = user_id).first()
+@login_manager.unauthorized_handler          # Specifies what to do if User is not logged in
+def unauthorized_callback():
+    flash("You must be logged in")
+    return redirect(url_for('login'))
 
 @app.route("/")
 def base():
@@ -68,6 +78,6 @@ def edit():
 def user():
     return render_template("user.html")
 
-# @app.errorhandler(404)
-# def page_not_found(e):
-#     return render_template("404.html"), 404
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("404.html"), 404

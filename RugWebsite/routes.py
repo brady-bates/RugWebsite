@@ -47,12 +47,20 @@ def logout():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     form = RegisterForm()
+    entered_username = form.username.data
+
+    # If Request type is Post and the form validates
     if request.method == 'POST' and form.validate():
-        hashed_password = ph.hash(form.password.data)
-        new_user = Users(username=form.username.data, password=hashed_password)
-        print(new_user)
-        session.add(new_user)
-        session.commit()
+        # If there is not an existing user
+        if session.query(Users).filter_by(username=entered_username).count() == 0:
+            hashed_password = ph.hash(form.password.data)
+            new_user = Users(username=form.username.data, password=hashed_password)
+            print(new_user)
+            session.add(new_user)
+            session.commit()
+        else:
+            flash("This Username already exists, try a different username")
+            return redirect(url_for("register"))
         return redirect(url_for("login"))
     return render_template("register.html", form=form)
 

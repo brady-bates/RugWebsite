@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
-
 {% block text %}
 <form method="POST" action="">
     {{ form.hidden_tag() }}
     {{ form.username }}
+    <br>
+    {{ form.email }}
+    <br>
     {{ form.password }}
+    <br>
     {{ form.submit }}
 </form>
 <h1>Register</h1>

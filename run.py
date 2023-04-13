@@ -1,13 +1,12 @@
 # NOW
-# TODO Add login system and page
+# DONE Add login system and page
 # DONE Add SQL Alchemy Database
 # TODO Add cart
-#
-# AFTER MEETING WITH ELIJAH
 # TODO Add products
 # TODO Format HTML pages
+# TODO Add admin page and functionality
 #
-# END
+# LATER
 # TODO Add email sending
 # TODO Figure out security
 # TODO Figure out purchase verification
@@ -20,7 +19,7 @@ session.close()
 dropAll()
 createAll()
 
-admin = Users(username="admin", password=ph.hash("adminpass"))
+admin = Users(username="admin", password=ph.hash("adminpass"), email="admin@gmail.com")
 session.add(admin)
 session.commit()
 
